@@ -21,10 +21,10 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 
 # Загрузка звуковых эффектов
-shoot_sound = pygame.mixer.Sound("shoot.wav")
-hit_sound = pygame.mixer.Sound("hit.wav")
-win_sound = pygame.mixer.Sound("win.wav")
-lose_sound = pygame.mixer.Sound("lose.wav")
+shoot_sound = pygame.mixer.Sound("shoot.mp3")
+hit_sound = pygame.mixer.Sound("hit.mp3")
+win_sound = pygame.mixer.Sound("win.mp3")
+lose_sound = pygame.mixer.Sound("lose.mp3")
 
 
 # Класс Игрок
