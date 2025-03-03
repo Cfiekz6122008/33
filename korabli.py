@@ -1,133 +1,125 @@
 import pygame
-import random
-import sys
+import pygame.mixer
 
-# Инициализация Pygame
 pygame.init()
+pygame.mixer.init()
 
-# Константы
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
-TARGET_SIZE = 50
-BULLET_SPEED = 10
-BULLET_WIDTH = 5
-BULLET_HEIGHT = 5
-PLAYER_WIDTH = 50
-PLAYER_HEIGHT = 50
+shot_sound = pygame.mixer.Sound("shot.mp3")
+explosion_sound = pygame.mixer.Sound('explosion.mp3')
+fail_sound = pygame.mixer.Sound("fail.mp3")
 
-# Цвета
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
+pygame.mixer.music.load("soundtrack.mp3")
+pygame.mixer.music.play(-1)
+pygame.mixer.music.set_volume(0.3)
 
-# Загрузка звуковых эффектов
-shoot_sound = pygame.mixer.Sound("shoot.mp3")
-hit_sound = pygame.mixer.Sound("hit.mp3")
-win_sound = pygame.mixer.Sound("win.mp3")
-lose_sound = pygame.mixer.Sound("lose.mp3")
+shot_sound.set_volume(0.6)
 
+FPS = 120
 
-# Класс Игрок
-class Player:
-    def __init__(self):
-        self.rect = pygame.Rect(SCREEN_WIDTH // 2, SCREEN_HEIGHT - PLAYER_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT)
+clock = pygame.time.Clock()
 
-    def move(self, dx):
-        self.rect.x += dx
-        # Ограничение движения игрока
-        self.rect.x = max(0, min(SCREEN_WIDTH - PLAYER_WIDTH, self.rect.x))
+screen = pygame.display.set_mode((640, 480))
 
+screen_rect = screen.get_rect()
 
-# Класс Цель
-class Target:
-    def __init__(self):
-        self.rect = pygame.Rect(random.randint(0, SCREEN_WIDTH - TARGET_SIZE), 0, TARGET_SIZE, TARGET_SIZE)
-        self.speed = 3
+MAIN_BACKGROUND_COLOR = (255, 255, 255)
+MISSLE_COLOR = (255, 0, 0)
+SHIP_COLOR = (0, 0, 255)
 
-    def update(self):
-        self.rect.y += self.speed
-        # Перезапуск цели, если она ушла вниз
-        if self.rect.y > SCREEN_HEIGHT:
-            self.rect.y = 0
-            self.rect.x = random.randint(0, SCREEN_WIDTH - TARGET_SIZE)
+GAME_OVER_COLOR = (0, 0, 0)
+WIN_COLOR = (0, 255, 0)
 
+background_color = MAIN_BACKGROUND_COLOR
 
-# Класс Снаряд
-class Bullet:
-    def __init__(self, x, y):
-        self.rect = pygame.Rect(x, y, BULLET_WIDTH, BULLET_HEIGHT)
+ship = pygame.Rect(300, 200, 50, 100)
 
-    def update(self):
-        self.rect.y -= BULLET_SPEED
+ship.right = screen_rect.right
 
+ship.centery = screen_rect.centery
 
-# Функция проверки столкновения
-def check_collision(bullets, target):
-    for bullet in bullets:
-        if bullet.rect.colliderect(target.rect):
-            bullets.remove(bullet)
-            return True
-    return False
+missle = pygame.Rect(50, 50, 10, 10)
 
+missle.left = screen_rect.left
 
-# Настройка экрана
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Shooting Game")
+missle.centery = screen_rect.centery
 
-# Создание объектов
-player = Player()
-target = Target()
-bullets = []
-score = 0
-game_over = False
+missle_speed_x = 0
+missle_speed_y = 0
 
-# Основной игровой цикл
-while True:
+ship_speed_y = 0
+
+ship_allive = True
+missle_allive = True
+
+missle_launched = False
+
+running = True
+
+while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
+            running = False
 
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_LEFT]:
-        player.move(-5)
-    if keys[pygame.K_RIGHT]:
-        player.move(5)
-    if keys[pygame.K_SPACE] and not game_over:  # стрельба
-        bullets.append(Bullet(player.rect.centerx, player.rect.top))
-        shoot_sound.play()
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE and not missle_launched:
+                missle_launched = True
+                missle_speed_y = 0
+                missle_speed_x = 3
+                pygame.mixer.music.stop()
+                shot_sound.play()
 
-    # Обновление объектов
-    if not game_over:
-        target.update()
-        for bullet in bullets[:]:
-            bullet.update()
-            if bullet.rect.y < 0:  # Удаление снарядов, вышедших за экран
-                bullets.remove(bullet)
+            elif event.key == pygame.K_w and not missle_launched:
+                missle_speed_y = -2
 
-        # Проверка на поражение цели
-        if check_collision(bullets, target):
-            score += 1
-            hit_sound.play()
-            target = Target()  # Замена цели при попадании
+            elif event.key == pygame.K_s and not missle_launched:
+                missle_speed_y = 2
 
-        # Условие поражения
-        if target.rect.y >= SCREEN_HEIGHT - TARGET_SIZE:
-            game_over = True
-            lose_sound.play()
+        if missle_allive:
+            missle.move_ip(missle_speed_x, missle_speed_y)
+            if not missle.colliderect(screen_rect):
+                missle_allive = False
 
-    # Отрисовка объектов
-    screen.fill(WHITE)
-    pygame.draw.rect(screen, GREEN, player.rect)
-    pygame.draw.rect(screen, RED, target.rect)
-    for bullet in bullets:
-        pygame.draw.rect(screen, GREEN, bullet.rect)
+                background_color = GAME_OVER_COLOR
+                pygame.mixer.music.stop()
+                fail_sound.play()
 
-    # Отображение результата
-    if game_over:
-        font = pygame.font.Font(None, 74)
-        text = font.render("Game Over", True, (255, 0, 0))
-        screen.blit(text, (SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2 - 50))
+            if ship_allive and missle.colliderect(ship):
+                missle_allive = False
+                ship_allive = False
+                background_color = WIN_COLOR
+                explosion_sound.play()
 
-    pygame.display.flip()
-    pygame.time.Clock().tick(60)
+        if ship_allive:
+            ship.move_ip(0, ship_speed_y)
+            if ship.bottom > screen_rect.bottom or ship.top < screen_rect.top:
+                ship_speed_y = -ship_speed_y
+
+        screen.fill(background_color)
+
+        if ship_allive:
+            pygame.draw.rect(screen, SHIP_COLOR, ship)
+
+        if missle_allive:
+            pygame.draw.rect(screen, MISSLE_COLOR, missle)
+
+        pygame.display.flip()
+
+        clock.tick(FPS)
+
+    pygame.quit()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
